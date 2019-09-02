@@ -7,3 +7,5 @@ I'm gonna look at word2vec, Glove, word embedings, and sentiment analysis with r
 <p>Dump file from <a href="https://dumps.wikimedia.org/enwiki/">wikipedia.</a></p>
 
 <p>Dump file is converted into plain text using <a href="https://github.com/yohasebe/wp2txt">wp2tex.</a></p>
+
+<p>About <a href="http://www.tfidf.com/">TF-IDF</a>(stands for term frequency-inverse document frequency)</p>
