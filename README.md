@@ -9,3 +9,5 @@ I'm gonna look at word2vec, Glove, word embedings, and sentiment analysis with r
 <p>Dump file is converted into plain text using <a href="https://github.com/yohasebe/wp2txt">wp2tex.</a></p>
 
 <p>About <a href="http://www.tfidf.com/">TF-IDF</a>(stands for term frequency-inverse document frequency)</p>
+
+<p>TSNE<a href="https://scikit-learn.org/stable/modules/generated/sklearn.manifold.TSNE.html"</a></p>
