@@ -1,15 +1,10 @@
 # NLP
 I'm gonna look at word2vec, Glove, word embedings, and sentiment analysis with recursive nets.
 
-<<<<<<< HEAD
 <h3>Pretrained data</h3>
 
 <li>Sentiment Analysis</li>
 <p>you can download sentiment data set from <a href="https://nlp.stanford.edu/sentiment/">stanford</a>.</p>
-=======
-<h3>Prerequisite</h3>
-<p>You can download sentiment data set from <a href="https://nlp.stanford.edu/sentiment/">stanford</a>.</p>
->>>>>>> d0c077bace39620b8de3e610f3344b3cc5d37202
 
 <li>Word Vector</li>
 <p>you can download pretrained word vector from <a href="https://nlp.stanford.edu/projects/glove/">stanford</a>.</p>
