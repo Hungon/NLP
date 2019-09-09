@@ -13,9 +13,10 @@ from sklearn.ensemble import ExtraTreesClassifier, RandomForestClassifier
 from gensim.models import KeyedVectors
 
 # data from https://www.cs.umb.edu/~smimarog/textmining/datasets/
-train = pd.read_csv('/Users/koheimoroi/Git/NLP/large_files/r8_train_all_terms.txt',
+# make sure correct path that you stored in
+train = pd.read_csv('../large_files/r8_train_all_terms.txt',
                     header=None, sep='\t')
-test = pd.read_csv('/Users/koheimoroi/Git/NLP/large_files/r8_train_all_terms.txt',
+test = pd.read_csv('../large_files/r8_train_all_terms.txt',
                    header=None, sep='\t')
 train.columns = ['label', 'content']
 test.columns = ['label', 'content']
@@ -29,7 +30,8 @@ class GloveVectorizer:
         word2vec = {}
         embedding = []
         idx2word = []
-        with open('/Users/koheimoroi/Git/NLP/large_files/glove.6B/glove.6B.50d.txt') as f:
+        # make sure correct path that you stored in
+        with open('../large_files/glove.6B/glove.6B.50d.txt') as f:
             # is just a space-separated text file in the format:
             # word vec[0] vec[1] vec[2] ...
             for line in f:
