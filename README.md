@@ -13,6 +13,22 @@ I'm gonna look at word2vec, Glove, word embedings, and sentiment analysis with r
 
 <p>Dump file is converted into plain text using <a href="https://github.com/yohasebe/wp2txt">wp2tex.</a></p>
 
+<h3>Model</h3>
+<h4>Markov Assumption</h4>
+<p>Markov assumption is that whatever you see now depends only on what you saw in the previous step.<br>
+In other words any older terms just disapper.</p>
+<code>p(Wn|Wn-1, Wn-2, ..., W1) = p(Wn | Wn-1)</code>
+<p>Also See <a target="_blank" href="https://en.wikipedia.org/wiki/Markov_chain">Markov Chain</a></p>
+<h4>Bigram</h4>
+<code>p(Wn|Wn-1)</code>
+<p>This is a sequance of two adjacent elements from a string of tokens, which are typically letters, syllables or words.</p>
+<h4>Unigram</h4>
+<p>Contiguous sequence of n items from a given sample of text or speech.</p>
+<code>p(A = count(A) devided by corpus length</code>
+<h4>Trigram</h4>
+<p>Trigam is a special case of the n-gram, where n is 3.</p>
+<code>p(C | A, B) = count(A->B->C) devided by count(A->B)</code>
+
 <h4>Reference</h4>
 
 <p>About <a href="http://www.tfidf.com/">TF-IDF</a>(stands for term frequency-inverse document frequency)</p>
