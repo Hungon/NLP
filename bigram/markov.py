@@ -22,7 +22,7 @@ def get_bigram_probs(sentences, V, start_index, end_index, smoothing=1):
         for i in range(len(sentence)):
             if i == 0:
                 # beginning word
-                bigram_probs[start_index, [sentence[i]]] += 1
+                bigram_probs[start_index, sentence[i]] += 1
             else:
                 # middle word
                 bigram_probs[sentence[i-1], sentence[i]] += 1
