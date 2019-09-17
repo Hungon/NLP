@@ -9,4 +9,4 @@
 <li>Make use of log probability</li>
 <p>1. Speed. Since multiplication is more expensive than addition, taking the product of a high number of probablities is often faster if they are represented in log form.</p>
 <p>2. Accuracy. The use of log probablities improves numerical stability, when the probablities are very small, because of the way in which computes approximate real numbers.</p>
-<p>Simplicity. Many probability distibutions habe asn exponetial form. Taking the log these distributions eliminates the exponential function, unwrapping the exponent.
+<p>Simplicity. Many probability distibutions have an exponential form. Taking the log these distributions eliminates the exponential function, unwrapping the exponent.
