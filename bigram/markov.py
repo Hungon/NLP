@@ -12,11 +12,11 @@ from rnn.corpus import get_sentences_with_word2idx_limit_vocab, get_sentences_wi
 # sudo pip install -U future
 
 
-def get_bigram_probs(sentencts, V, start_index, end_index, smoothing=1):
-    # structure of bigrma probablity matriix will be:
+def get_bigram_probs(sentences, V, start_index, end_index, smoothing=1):
+    # structure of bigram probablity matriix will be:
     # (last word, current word) -> probablity
     # we will use add-1 smoothing
-    # note: we'll always iignore this from the End token
+    # note: we'll always ignore this from the End token
     bigram_probs = np.ones((V, V)) * smoothing
     for sentence in sentences:
         for i in range(len(sentence)):
@@ -74,10 +74,10 @@ if __name__ == '__main__':
                 score += np.log(bigram_probs[sentence[i-1], sentence[i]])
 
         # final word
-        score += np.log(bigram_probs[sentence[i-1], sentence[i]])
+        score += np.log(bigram_probs[sentence[-1], end_index])
 
         # normalize the score
-        return score / (len(sentence)+1)
+        return score / (len(sentence) + 1)
 
     # a function to map word indexes back to real word
     index2word = dict((v, k) for k, v in iteritems(word2index))
@@ -101,8 +101,8 @@ if __name__ == '__main__':
         # fake sentence
         fake = np.random.choice(V, size=len(real), p=sample_probs)
 
-        print("Real", get_words(real), "Score:", get_score(real))
-        print("Fake", get_words(fake), "Score:", get_score(fake))
+        print("Real:", get_words(real), "Score:", get_score(real))
+        print("Fake:", get_words(fake), "Score:", get_score(fake))
 
         # input you own sentence
         custom = input("Enter your own sentence\n")
