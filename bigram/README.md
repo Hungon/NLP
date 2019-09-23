@@ -10,3 +10,9 @@
 <p>1. Speed. Since multiplication is more expensive than addition, taking the product of a high number of probablities is often faster if they are represented in log form.</p>
 <p>2. Accuracy. The use of log probablities improves numerical stability, when the probablities are very small, because of the way in which computes approximate real numbers.</p>
 <p>Simplicity. Many probability distibutions have an exponential form. Taking the log these distributions eliminates the exponential function, unwrapping the exponent.
+
+<h3>Bigram probabilities</h3>
+<li>Since x just contains 0s and 1s we can ignore</li>
+<li>Matrix multiplication rule:(V*D)(D*V) -> (V*V)</li>
+<code>p(y | x) = softmax(W&supT;x)</code><span>as described in logistic.py.</span>
+<code>p(y | x) = softmax(W2&supT; tanh(W1&supT;x))</code><span>as described in neural_network.py</span>
