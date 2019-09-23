@@ -14,5 +14,5 @@
 <h3>Bigram probabilities</h3>
 <li>Since x just contains 0s and 1s we can ignore</li>
 <li>Matrix multiplication rule:(V*D)(D*V) -> (V*V)</li>
-<code>p(y | x) = softmax(W&supT;x)</code><span>as described in logistic.py.</span>
-<code>p(y | x) = softmax(W2&supT; tanh(W1&supT;x))</code><span>as described in neural_network.py</span>
+<p><code>p(y | x) = softmax(W&supT;x)</code><span>as described in logistic.py.</span></p>
+<p><code>p(y | x) = softmax(W2&supT; tanh(W1&supT;x))</code><span>as described in neural_network.py</span></p>
