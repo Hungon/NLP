@@ -18,10 +18,12 @@ from rnn.corpus import get_sentences_with_word2idx_limit_vocab, get_sentences_wi
 from markov import get_bigram_probs
 
 if __name__ == '__main__':
+    
+    limiited_vocab_size = 20
     # load in the data
     # note: sentences are alredy converted into sequences of word indexes
     # note: you can limit the vocab size if you out of memory
-    sentences, word2index = get_sentences_with_word2idx_limit_vocab(20)
+    sentences, word2index = get_sentences_with_word2idx_limit_vocab(limiited_vocab_size)
     # sentences, word2index = get_sentences_with_word2index()
 
     # vocab size
@@ -68,32 +70,37 @@ if __name__ == '__main__':
             # convert sentence into one-hot encoded inputs and targets
             sentence = [start_index] + sentence + [end_index]
             n = len(sentence)
-            inputs = np.zeros((n - 1, V))
-            targets = np.zeros((n - 1, V))
-            inputs[np.arange(n - 1), sentence[:n-1]] = 1
-            targets[np.arange(n - 1), sentence[1:]] = 1
-
+            # do not one-hot encoded inputs and targets
+            inputs = sentence[:n-1]
+            targets = sentence[1:]
+            
             # get output predictions
-            hidden = np.tanh(inputs.dot(W1))
+            hidden = np.tanh(W1[inputs])
             predictions = softmax(hidden.dot(W2))
 
-            # do a gradient descent step
-            W2 = W2 - lr * hidden.T.dot(predictions - targets)
-            dhidden = (predictions - targets).dot(W2.T) * (1 - hidden * hidden)
-            W1 = W1 - lr * inputs.T.dot(dhidden)
-            
             # keep track of the loss
-            loss = -np.sum(targets * np.log(predictions)) / (n - 1)
+            loss = -np.sum(np.log(predictions[np.arange(n - 1), targets])) / (n - 1)
             losses.append(loss)
+
+            # do a gradient descent step
+            # do it after loss since the calculation of doutput will overwrite predictions
+            # we don't want to make a copy because it would be slow
+            doutput = predictions # N * V
+            doutput[np.arange(n - 1), targets] -= 1
+            W2 = W2 - lr * hidden.T.dot(doutput) # (D * N)(N * V)
+            dhidden = doutput.dot(W2.T) * (1 - hidden * hidden) # (N * V)(V * D)(N * D)
+            
+            # fastest way
+            np.subtract.at(W1, inputs, lr * dhidden)
 
             # keep track of the bigram loss
             # only do it for the first epoch to avoid redundancy
             if epoch == 0:
-                bigram_predictions = softmax(inputs.dot(W_bigram))
-                bigram_loss = -np.sum(targets * np.log(bigram_predictions)) / (n - 1)
+                bigram_predictions = softmax(W_bigram[inputs])
+                bigram_loss = -np.sum(np.log(bigram_predictions[np.arange(n - 1), targets])) / (n - 1)
                 bigram_losses.append(bigram_loss)
 
-            if j % 10 == 0:
+            if j % 100 == 0:
                 print("epoch", epoch, "sentence: %s/%s" % (j, len(sentences)), "loss", loss)
             j += 1
 
@@ -123,6 +130,8 @@ if __name__ == '__main__':
         # for the most common 200 words
         plt.subplot(1, 2, 1)
         plt.title("Neural Network Model")
+        # compute hyperbolic tangent element-wise, 
+        # multiply the result by W2 and show it
         plt.imshow(np.tanh(W1).dot(W2))
         plt.subplot(1, 2, 2)
         plt.title("Bigram Probs")
