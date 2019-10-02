@@ -10,6 +10,6 @@
 <img src="https://user-images.githubusercontent.com/17066776/66060631-f02fa000-e578-11e9-887e-1e64857f9a00.png" width="220" height="40"/>
 <p>
 <li>The fact that input weight is V * D is not a problem, since we only index it.</li>
-<li>Fot the output matrix in a naive bigram, we must multiply, because j and W are arbitrary dense matrices.</li>
+<li>For the output matrix in a naive bigram, we must multiply, because j and W are arbitrary dense matrices.</li>
 <li>Now, each split has 1 vector of length D.</li>
 <li>We still have O(V) output weights, but only O(logV) operations.</li>
