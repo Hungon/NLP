@@ -38,3 +38,5 @@ In other words any older terms just disapper.</p>
 <p>About <a href="https://en.wikipedia.org/wiki/Word2vec#CBOW_and_skip_grams">CBOW</a>(stands for continuous bag-of-words)</p>
 
 <p>About <a href="https://towardsdatascience.com/skip-gram-nlp-context-words-prediction-algorithm-5bbf34f84e0c">Skip-gram</a>(opposite of CBOW)</p>
+
+<p>About <a href="https://scikit-learn.org/stable/modules/sgd.html">SDG</a>(stands for Stochastic Gradient Descent)</p>
