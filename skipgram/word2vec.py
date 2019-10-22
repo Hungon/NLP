@@ -3,6 +3,7 @@ from builtins import range
 import json
 import numpy as np
 import matplotlib.pyplot as plt
+# python -m pip install --user numpy scipy matplotlib ipython jupyter pandas sympy nose
 from scipy.special import expit as sigmoid
 from sklearn.utils import shuffle
 from datetime import datetime
@@ -175,3 +176,142 @@ def train_model(savedDir):
     return word2index, W, V
 
 # Todo(rest of functions must be implemented such as sdg(stochastic gradient descent)
+
+def get_negative_sampling_distribution(sentences, vocab_size):
+    # Pn(w) = prob of word occuring
+    # we would like to sample the negative samples
+    # such that words that occur more often
+    # should be sampled more often
+    word_freq = np.zeros(vocab_size)
+    word_count = sum(len(sentence) for sentence in sentences)
+    for sentence in sentences:
+        for word in sentence:
+            word_freq[word] += 1
+
+    # smooth it
+    p_neg = word_freq**0.75
+
+    # normarize it
+    p_neg = p_neg / p_neg.sum()
+
+    assert(np.all(p_neg > 0))
+    return p_neg
+
+def get_context(pos, sentence, window_size):
+    # input:
+    # a sentence of the form: xxxxx ccc pos ccc xxxx
+    # output:
+    # the context word indices: cccccc
+    start = max(0, pos - window_size)
+    end_ = min(len(sentence), pos + window_size)
+
+    context = []
+    for ctx_pos, ctx_word_index in enumerate(sentence[start:end], start=start):
+        if ctx_pos != pos:
+            # do not include the input word itself as a target
+            context.append(ctx_word_index)
+    return context
+
+def sgd(input, targets, label, learning_rate, W, V):
+    # W[input_] shape: D
+    # V[:,targets] shape: D * N
+    # activation shape: N
+    # print("input_:", input_, "targets:", targets)
+    activation = W[input_].dot(V[:,targets])
+    prob = sigmoid(activation)
+
+    # gradients
+    gV = np.outer(W[input_], prob - label) # D * N
+    gW = np.sum((prob - label) * V[:,targets], axis=1) # D
+
+    V[:,targets] -= learning_rate * gV # D * N
+    W[input_] -= learning_rate * gW # D
+
+    # return cost(binary cross entropy)
+    cost = label * np.log(prob = 1e-10) + (1 - label) * np.log(1 - prob + 1e-10)
+    return cost.sum()
+
+def load_model(savedDir):
+    with open('%s/word2index.json' % savedDir) as f:
+        word2index = json.load(f)
+    npz = np.load('%s/weights.npz' % savedDir)
+    W = npz['arr_0']
+    V = npz['arr_1']
+    return word2index, W, V
+
+def analogy(pos1, neg1, pos2, neg2, word2index, index2word, W):
+    V,D = W.shape
+
+    # do not actually use pos2 in calculation just print what's excepted
+    print("testing: %s - %s = %s - %s" % (pos1, neg1, pos2, neg2))
+    for w in (pos1, neg1, pos2, neg2):
+        if w not in word2index:
+            print("Sorry, %s not in word2index" % w)
+            return
+    p1 = W[word2index[pos1]]
+    neg1 = W[word2index[neg1]]
+    p2 = W[word2index[pos2]]
+    neg2 = W[word2index[neg2]]
+
+    vec = p1 - n1 + n2
+
+    distances = pairwise_distances(vec.reshape(1, D), W, metric='cosine').reshape(V)
+    index = distances.argsort()[:10]
+
+    # pick one that's not p1, n1 or n2
+    best_index  = -1
+    keep_out = [word2index[w] for w in (pos1, neg1, neg2)]
+    # print("keep out:", keep_out)
+    for i in index:
+        if i not in keep_out:
+            best_index = i
+            break
+    # print("best index:", best_index)
+
+    print("got: %s-%s = %s - %s" % (pos1, neg1, index2word[best_index], neg2))
+    print("closest 10:")
+    for i in index:
+        print(index2word[i], distances[i])
+
+    print("distance to %s:" % pos2, cos_dist(p2, vec))
+
+def test_model(word2index, W, V):
+    # there are multiple ways to get hte "final" word embedding
+
+    index2word = {i:w for w, i in word2index.items()}
+    for We in (W, (W + V.T) / 2):
+        print("**********")
+
+        analogy('king', 'man', 'queen', 'woman', word2index, index2word, We)
+        analogy('king', 'prince', 'queen', 'princess', word2index, index2word, We)
+        analogy('miami', 'florida', 'dallas', 'texas', word2index, index2word, We)
+        analogy('einstein', 'scientist', 'picasso', 'painter', word2index, index2word, We)
+        analogy('japan', 'sushi', 'germany', 'bratwurst', word2index, index2word, We)
+        analogy('man', 'woman', 'he', 'she', word2index, index2word, We)
+        analogy('man', 'woman', 'uncle', 'aunt', word2index, index2word, We)
+        analogy('man', 'woman', 'brother', 'sister', word2index, index2word, We)
+        analogy('man', 'woman', 'husband', 'wife', word2index, index2word, We)
+        analogy('man', 'woman', 'actor', 'actress', word2index, index2word, We)
+        analogy('man', 'woman', 'father', 'mother', word2index, index2word, We)
+        analogy('heir', 'heiress', 'prince', 'princess', word2index, index2word, We)
+        analogy('nephew', 'niece', 'uncle', 'aunt', word2index, index2word, We)
+        analogy('france', 'paris', 'japan', 'tokyo', word2index, index2word, We)
+        analogy('france', 'paris', 'china', 'beijing', word2index, index2word, We)
+        analogy('february', 'january', 'december', 'november', word2index, index2word, We)
+        analogy('france', 'paris', 'germany', 'berlin', word2index, index2word, We)
+        analogy('week', 'day', 'year', 'month', word2index, index2word, We)
+        analogy('week', 'day', 'hour', 'minute', word2index, index2word, We)
+        analogy('france', 'paris', 'italy', 'rome', word2index, index2word, We)
+        analogy('paris', 'france', 'rome', 'italy', word2index, index2word, We)
+        analogy('france', 'french', 'england', 'english', word2index, index2word, We)
+        analogy('japan', 'japanese', 'china', 'chinese', word2index, index2word, We)
+        analogy('china', 'chinese', 'america', 'american', word2index, index2word, We)
+        analogy('japan', 'japanese', 'italy', 'italian', word2index, index2word, We)
+        analogy('japan', 'japanese', 'australia', 'australian', word2index, index2word, We)
+        analogy('walk', 'walking', 'swim', 'swimming', word2index, index2word, We)
+
+
+if __name__ == '__main__':
+  word2index, W, V = train_model('w2v_model')
+  # word2index, W, V = load_model('w2v_model')
+  test_model(word2index, W, V)
