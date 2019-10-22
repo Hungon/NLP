@@ -68,7 +68,7 @@ def get_wiki():
 
 # get the data
 def train_model(savedDir):
-    sentences, word2index = get_wiki() # can be replaced with get_brown()
+    sentences, word2index = get_brown() # can be replaced with get_brown()
 
     # number of unique words
     vocab_size = len(word2index)
@@ -175,8 +175,6 @@ def train_model(savedDir):
     # return the model
     return word2index, W, V
 
-# Todo(rest of functions must be implemented such as sdg(stochastic gradient descent)
-
 def get_negative_sampling_distribution(sentences, vocab_size):
     # Pn(w) = prob of word occuring
     # we would like to sample the negative samples
@@ -206,13 +204,13 @@ def get_context(pos, sentence, window_size):
     end_ = min(len(sentence), pos + window_size)
 
     context = []
-    for ctx_pos, ctx_word_index in enumerate(sentence[start:end], start=start):
+    for ctx_pos, ctx_word_index in enumerate(sentence[start:end_], start=start):
         if ctx_pos != pos:
             # do not include the input word itself as a target
             context.append(ctx_word_index)
     return context
 
-def sgd(input, targets, label, learning_rate, W, V):
+def sgd(input_, targets, label, learning_rate, W, V):
     # W[input_] shape: D
     # V[:,targets] shape: D * N
     # activation shape: N
