@@ -90,87 +90,87 @@ def train_model(savedDir):
 
     # distribution for drawing negative samples
     p_neg = get_negative_sampling_distribution(sentences, vocab_size)
+    if p_neg.all() > 0:
+        # save the costs plot them per iteration
+        costs = []
 
-    # save the costs plot them per iteration
-    costs = []
+        # number of total words in corpus
+        total_words = sum(len(sentences) for sentence in sentences)
+        print("total number of words in corpus:", total_words)
 
-    # number of total words in corpus
-    total_words = sum(len(sentences) for sentence in sentences)
-    print("total number of words in corpus:", total_words)
+        # for subsampling each sentence
+        threshold = 1e-5
+        p_drop = 1 - np.sqrt(threshold / p_neg)
 
-    # for subsampling each sentence
-    threshold = 1e-5
-    p_drop = 1 - np.sqrt(threshold / p_neg)
+        # train the model
+        for epoch in range(epochs):
+            # randomly order sentences so we don't always see
+            # sentences in  the same order
+            np.random.shuffle(sentences)
 
-    # train the model
-    for epoch in range(epochs):
-        # randomly order sentences so we don't always see
-        # sentences in  the same order
-        np.random.shuffle(sentences)
+            # accumulate the cost
+            cost = 0
+            counter = 0
+            t0 = datetime.now()
+            for sentence in sentences:
+                # keep only certain words based on p_neg
+                sentence = [w for w in sentence \
+                    if np.random.random() < (1 - p_drop[w])
+                ]
+                if len(sentence) < 2:
+                    continue
 
-        # accumulate the cost
-        cost = 0
-        counter = 0
-        t0 = datetime.now()
-        for sentence in sentences:
-            # keep only certain words based on p_neg
-            sentence = [w for w in sentence \
-                if np.random.random() < (1 - p_drop[w])
-            ]
-            if len(sentence) < 2:
-                continue
+                # randomly order words so we don't always see
+                # samples in the same order
+                randomly_ordered_positions = np.random.choice(
+                    len(sentence),
+                    size=len(sentence), # np.random.randint(1, len(sentence)+1)
+                    replace=False
+                )
 
-            # randomly order words so we don't always see
-            # samples in the same order
-            randomly_ordered_positions = np.random.choice(
-                len(sentence),
-                size=len(sentence), # np.random.randint(1, len(sentence)+1)
-                replace=False
-            )
+                for pos in randomly_ordered_positions:
+                    # the middle word
+                    word = sentence[pos]
 
-            for pos in randomly_ordered_positions:
-                # the middle word
-                word = sentence[pos]
+                    # get the positive context words/negative samples
+                    context_words = get_context(pos, sentence, window_size)
+                    neg_word = np.random.choice(vocab_size, p=p_neg)
+                    targets = np.array(context_words)
 
-                # get the positive context words/negative samples
-                context_words = get_context(pos, sentence, window_size)
-                neg_word = np.random.choice(vocab_size, p=p_neg)
-                targets = np.array(context_words)
+                    # do one iteration of stochastic gradient descent
+                    c = sgd(word, targets, 1, learnning_rate, W, V)
+                    cost += c
+                    c = sgd(neg_word, targets, 0, learnning_rate, W, V)
+                    cost += c
 
-                # do one iteration of stochastic gradient descent
-                c = sgd(word, targets, 1, learnning_rate, W, V)
-                cost += c
-                c = sgd(neg_word, targets, 0, learnning_rate, W, V)
-                cost += c
+                counter += 1
+                if counter % 100 == 0:
+                    sys.stdout.write("processed %s / %s\r" % (counter, len(sentences)))
+                    sys.stdout.flush()
+                    # break
 
-            counter += 1
-            if counter % 100 == 0:
-                sys.stdout.write("processed %s / %s\r" % (counter, len(sentences)))
-                sys.stdout.flush()
-                # break
+            # print stuff so we don't stare at a blank screen
+            dt = datetime.now() - t0
+            print("epoch complete:", epoch, "cost:", cost, "dt:", dt)
 
-        # print stuff so we don't stare at a blank screen
-        dt = datetime.now() - t0
-        print("epoch complete:", epoch, "cost:", cost, "dt:", dt)
+            # save the cost
+            costs.append(cost)
 
-        # save the cost
-        costs.append(cost)
+            # update the learnning rate
+            learnning_rate -= learnning_rate_delta
 
-        # update the learnning rate
-        learnning_rate -= learnning_rate_delta
+        # plot the cost per iteration
+        plt.plot(costs)
+        plt.show()
 
-    # plot the cost per iteration
-    plt.plot(costs)
-    plt.show()
+        # save model
+        if not os.path.exists(savedDir):
+            os.mkdir(savedDir)
 
-    # save model
-    if not os.path.exists(savedDir):
-        os.mkdir(savedDir)
+        with open('%s/word2index.json' % savedDir, 'w') as f:
+            json.dump(word2index, f)
 
-    with open('%s/word2index.json' % savedDir, 'w') as f:
-        json.dump(word2index, f)
-
-    np.savez('%s/weights.npz' % savedDir, W, V)
+        np.savez('%s/weights.npz' % savedDir, W, V)
 
     # return the model
     return word2index, W, V
@@ -192,7 +192,7 @@ def get_negative_sampling_distribution(sentences, vocab_size):
     # normarize it
     p_neg = p_neg / p_neg.sum()
 
-    assert(np.all(p_neg > 0))
+    # assert(np.all(p_neg > 0))
     return p_neg
 
 def get_context(pos, sentence, window_size):
@@ -247,9 +247,9 @@ def analogy(pos1, neg1, pos2, neg2, word2index, index2word, W):
             print("Sorry, %s not in word2index" % w)
             return
     p1 = W[word2index[pos1]]
-    neg1 = W[word2index[neg1]]
+    n1 = W[word2index[neg1]]
     p2 = W[word2index[pos2]]
-    neg2 = W[word2index[neg2]]
+    n2 = W[word2index[neg2]]
 
     vec = p1 - n1 + n2
 
@@ -259,24 +259,25 @@ def analogy(pos1, neg1, pos2, neg2, word2index, index2word, W):
     # pick one that's not p1, n1 or n2
     best_index  = -1
     keep_out = [word2index[w] for w in (pos1, neg1, neg2)]
-    # print("keep out:", keep_out)
+    print("keep out:", keep_out)
     for i in index:
         if i not in keep_out:
             best_index = i
             break
-    # print("best index:", best_index)
+    print("best index:", best_index)
 
-    print("got: %s-%s = %s - %s" % (pos1, neg1, index2word[best_index], neg2))
+    print("got: %s - %s = %s - %s" % (pos1, neg1, index2word[best_index], neg2))
     print("closest 10:")
     for i in index:
         print(index2word[i], distances[i])
 
-    print("distance to %s:" % pos2, cos_dist(p2, vec))
+    print("dist to %s:" % pos2, cos_dist(p2, vec))
+    print("\n")
 
 def test_model(word2index, W, V):
     # there are multiple ways to get hte "final" word embedding
-
     index2word = {i:w for w, i in word2index.items()}
+    # V.T is same as V.transpose()
     for We in (W, (W + V.T) / 2):
         print("**********")
 
