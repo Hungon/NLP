@@ -2,3 +2,5 @@ wp2txt/
 wiki_data
 large_files
 .DS_Store
+venv/
+w2v_model/
