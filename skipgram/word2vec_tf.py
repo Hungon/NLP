@@ -6,7 +6,7 @@ import json
 # System install
 # pip3 install --user --upgrade tensorflow  # install in $HOME
 # Virtual install
-# pip install --upgrade tensorflow
+# pip install --upgrade tensorflow==1.15.0
 # Verify the install
 # python -c "import tensorflow as tf;print(tf.reduce_sum(tf.random.normal([1000, 1000])))"
 import tensorflow as tf
@@ -41,40 +41,6 @@ if sys.version.startswith('2'):
 else:
     remove_punctuation = remove_punctuation_3
 
-def get_wiki():
-    V = 20000
-    files = glob('../large_file/enwiki.txt')
-    all_word_counts = {}
-    for f in files:
-        for line in open(f):
-            if line and line[0] not in '[*-|=\{\}':
-                s = remove_punctuation(line).lower().split()
-                if len(s) > 1:
-                    for word in s:
-                        if word not in all_word_counts:
-                            all_word_counts[word] = 0
-                        all_word_counts[word] += 1
-    print("finished counting")
-
-    V = min(V, len(all_word_counts))
-    all_word_counts = sorted(all_word_counts.items(), key=lambda x: x[1], reverse=True)
-
-    top_words = [w for w, count in all_word_counts[:V-1]] + ['<UNK>']
-    word2index = {w:i for i, w in enumerate(top_words)}
-    unk = word2index['<UNK>']
-
-    sents = []
-    for f in files:
-        for line in open(f):
-            if line and line[0] not in '[*-|=\{\}':
-                s = remove_punctuation(line).lower().split()
-                if len(s) > 1:
-                    # if a word is not nearby another word, there won't be any context!
-                    # and hence nothing to train!
-                    sent = [word2index[w] if w in word2index else unk for w in s]
-                    sents.append(sent)
-    return sents, word2index
-
 # get the data
 def train_model(savedDir):
     sentences, word2index = get_brown() # can be replaced with get_brown()
@@ -87,101 +53,154 @@ def train_model(savedDir):
     learnning_rate = 0.025
     final_learnning_rate = 0.0001
     num_negatives = 5 # number of negative samples to draw per input word
-    epochs = 20
+    samples_per_epoch = int(1e5)
+    epochs = 10
     D = 50 # word embedding size
 
     # learnning rate decay
     learnning_rate_delta = (learnning_rate - final_learnning_rate) / epochs
 
-    # params
-    W = np.random.randn(vocab_size, D) # input-to-hidden
-    V = np.random.randn(D, vocab_size) # hidden-to-output
-
     # distribution for drawing negative samples
     p_neg = get_negative_sampling_distribution(sentences, vocab_size)
-    if p_neg.all() > 0:
-        # save the costs plot them per iteration
-        costs = []
 
-        # number of total words in corpus
-        total_words = sum(len(sentences) for sentence in sentences)
-        print("total number of words in corpus:", total_words)
+    # params
+    W = np.random.randn(vocab_size, D).astype(np.float32) # input to hidden
+    V = np.random.randn(D, vocab_size).astype(np.float32) # hidden to output
 
-        # for subsampling each sentence
-        threshold = 1e-5
-        p_drop = 1 - np.sqrt(threshold / p_neg)
+    # create the model
+    tf_input = tf.placeholder(tf.int32, shape=(None,))
+    tf_negword = tf.placeholder(tf.int32, shape=(None,))
+    tf_context = tf.placeholder(tf.int32, shape=(None,)) # targets (context)
+    tfw = tf.Variable(W)
+    # T as transpose
+    tfv = tf.Variable(V.T)
+    # biases = tf.Variable(np.zeros(vocab_size, dtype=np.float32))
 
-        # train the model
-        for epoch in range(epochs):
-            # randomly order sentences so we don't always see
-            # sentences in  the same order
-            np.random.shuffle(sentences)
+    def dot(A, B):
+        C = A * B
+        return tf.reduce_sum(C, axis=1)
 
-            # accumulate the cost
-            cost = 0
-            counter = 0
-            t0 = datetime.now()
-            for sentence in sentences:
-                # keep only certain words based on p_neg
-                sentence = [w for w in sentence \
-                    if np.random.random() < (1 - p_drop[w])
-                ]
-                if len(sentence) < 2:
-                    continue
+    # correct middle word output
+    emb_input = tf.nn.embedding_lookup(tfw, tf_input) # 1 * D
+    emb_output = tf.nn.embedding_lookup(tfv, tf_context) # N * D
+    correct_output = dot(emb_input, emb_output) # N
+    pos_loss = tf.nn.sigmoid_cross_entropy_with_logits(labels=tf.ones(tf.shape(correct_output)), logits=correct_output)
 
-                # randomly order words so we don't always see
-                # samples in the same order
-                randomly_ordered_positions = np.random.choice(
-                    len(sentence),
-                    size=len(sentence), # np.random.randint(1, len(sentence)+1)
-                    replace=False
-                )
+    # inicorrect middle word output
+    emb_input = tf.nn.embedding_lookup(tfw, tf_negword)
+    incorrect_output = dot(emb_output, emb_output)
+    neg_loss = tf.nn.sigmoid_cross_entropy_with_logits(labels=tf.zeros(tf.shape(incorrect_output)), logits=incorrect_output)
 
-                for pos in randomly_ordered_positions:
-                    # the middle word
-                    word = sentence[pos]
+    # total loss
+    loss = tf.reduce_mean(pos_loss) + tf.reduce_mean(neg_loss)
 
-                    # get the positive context words/negative samples
-                    context_words = get_context(pos, sentence, window_size)
-                    neg_word = np.random.choice(vocab_size, p=p_neg)
-                    targets = np.array(context_words)
+    # output = hidden.dot(tfV)
 
-                    # do one iteration of stochastic gradient descent
-                    c = sgd(word, targets, 1, learnning_rate, W, V)
+    # loss
+    # neither of the built-in TF functions work well
+    # per_sample_loss = tf.nn.nce_loss(
+    # # per_sample_loss = tf.nn.sampled_softmax_loss(
+    #   weights=tfV,
+    #   biases=biases,
+    #   labels=tfY,
+    #   inputs=hidden,
+    #   num_sampled=num_negatives,
+    #   num_classes=vocab_size,
+    # )
+    # loss = tf.reduce_mean(per_sample_loss)
+
+    # optimizer
+    # train_op = tf.train.GradientDescentOptimizer(learning_rate).minimize(loss)
+    train_op = tf.train.MomentumOptimizer(0.1, momentum=0.9).minimize(loss)
+
+    # make sessiion
+    session = tf.Session()
+    init_op = tf.global_variables_initializer()
+    session.run(init_op)
+
+    # save the costs to plot them per iteration
+    costs = []
+
+    # number of total words in corpus
+    total_words = sum(len(sentence) for sentence in sentences)
+    print("total number of words in corpus:", total_words)
+
+    # for subsampling each sentence
+    threshold = 1e-5
+    p_drop = 1 - np.sqrt(threshold / p_neg)
+
+    t0 = datetime.now()
+    # train the model
+    for epoch in range(epochs):
+        # randomly order sentences so we do not always see
+        # sentences in the same order
+        np.random.shuffle(sentences)
+
+        # acumulate the cost
+        cost = 0
+        counter = 0
+        inputs = []
+        targets = []
+        negwords = []
+        t1 = datetime.now()
+        for sentence in sentences:
+            # keep only certain words baed on p_neg
+            sentence = [w for w in sentence \
+                if np.random.random() < (1 - p_drop[w])
+            ]
+            if len(sentence) < 2:
+                continue
+            
+            randomly_ordered_positions = np.random.choice(len(sentence),size=len(sentence), replace=False)
+
+            for j, pos in enumerate(randomly_ordered_positions):
+                # the middle word
+                word = sentence[pos]
+                # get the positive contexr words/negative samples
+                context_words = get_context(pos, sentence, window_size)
+                neg_word = np.random.choice(vocab_size, p=p_neg)
+
+                n = len(context_words)
+                inputs += [word]*n
+                negwords += [neg_word]*n
+                targets += context_words
+
+                if len(inputs) >= 128:
+                    _, c = session.run((train_op, loss),feed_dict={tf_input: inputs, tf_negword: negwords, tf_context: targets})
                     cost += c
-                    c = sgd(neg_word, targets, 0, learnning_rate, W, V)
-                    cost += c
-
+                    # reset
+                    inputs = []
+                    targets = []
+                    negwords = []
                 counter += 1
                 if counter % 100 == 0:
-                    sys.stdout.write("processed %s / %s\r" % (counter, len(sentences)))
+                    # sys.stdout.write("processed %s / %s\n" % (counter, len(sentences)))
                     sys.stdout.flush()
                     # break
+                
+        # prinit stuff so we do not stare at a blank screen
+        dt = datetime.now() - t1
+        print("epoch complete: %s / %s" % (epoch+1, epochs), "cost:", cost, "dt:", dt)
+        # save the cost
+        costs.append(cost)
+        # update the learning rate
+        learnning_rate_delta -= learnning_rate_delta
 
-            # print stuff so we don't stare at a blank screen
-            dt = datetime.now() - t0
-            print("epoch complete:", epoch, "cost:", cost, "dt:", dt)
+    print("completed: %s / %s" % (epoch+1, epochs), "cost:", cost, "total time:", (datetime.now()-t0))
+    # plot the cost per iteration
+    plt.plot(costs)
+    plt.show()
+    # get the params
+    W, VT = session.run((tfw, tfv))
+    V = VT.T
 
-            # save the cost
-            costs.append(cost)
+    # save the model
+    if not os.path.exists(savedDir):
+        os.mkdir(savedDir)
+    with open('%s/word2index.json'%savedDir, 'w') as f:
+        json.dump(word2index, f)
+    np.savez('%s/weights.npz' % savedDir, W, V)
 
-            # update the learnning rate
-            learnning_rate -= learnning_rate_delta
-
-        # plot the cost per iteration
-        plt.plot(costs)
-        plt.show()
-
-        # save model
-        if not os.path.exists(savedDir):
-            os.mkdir(savedDir)
-
-        with open('%s/word2index.json' % savedDir, 'w') as f:
-            json.dump(word2index, f)
-
-        np.savez('%s/weights.npz' % savedDir, W, V)
-
-    # return the model
     return word2index, W, V
 
 def get_negative_sampling_distribution(sentences, vocab_size):
@@ -218,25 +237,6 @@ def get_context(pos, sentence, window_size):
             # do not include the input word itself as a target
             context.append(ctx_word_index)
     return context
-
-def sgd(input_, targets, label, learning_rate, W, V):
-    # W[input_] shape: D
-    # V[:,targets] shape: D * N
-    # activation shape: N
-    # print("input_:", input_, "targets:", targets)
-    activation = W[input_].dot(V[:,targets])
-    prob = sigmoid(activation)
-
-    # gradients
-    gV = np.outer(W[input_], prob - label) # D * N
-    gW = np.sum((prob - label) * V[:,targets], axis=1) # D
-
-    V[:,targets] -= learning_rate * gV # D * N
-    W[input_] -= learning_rate * gW # D
-
-    # return cost(binary cross entropy)
-    cost = label * np.log(prob = 1e-10) + (1 - label) * np.log(1 - prob + 1e-10)
-    return cost.sum()
 
 def load_model(savedDir):
     with open('%s/word2index.json' % savedDir) as f:
@@ -320,6 +320,6 @@ def test_model(word2index, W, V):
 
 
 if __name__ == '__main__':
-  word2index, W, V = train_model('w2v_model')
-  # word2index, W, V = load_model('w2v_model')
+  word2index, W, V = train_model('w2v_tf')
+  # word2index, W, V = load_model('w2v_tf')
   test_model(word2index, W, V)
