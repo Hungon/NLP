@@ -4,3 +4,5 @@ large_files
 .DS_Store
 venv/
 w2v_model/
+w2v_tf/
+__init__.py
