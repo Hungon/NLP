@@ -42,3 +42,4 @@ In other words any older terms just disapper.</p>
 <p>About <a href="https://scikit-learn.org/stable/modules/sgd.html">SDG</a>(stands for Stochastic Gradient Descent)</p>
 
 <p>About <a href="https://nlp.stanford.edu/projects/glove/">Glove</a>(stands for Global vectors for word representation)</p>
+<p>Glove is on <a href="https://github.com/stanfordnlp/GloVe">Github</a></p>
